@@ -14,6 +14,14 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+// 这个文件是用来保存peer node的数据的
+// 他把节点的数据都存储在node database里
+// 主要工作是：发现新节点 + 丢弃、更新废弃节点
+
+// ceramic可以做的事
+// 现在无效节点不会自动从peerlist中删除 所以你连接peer的时候会出来一堆connection failed 很浪费时间 
+// ==》可以加一个像geth里node database 实现自动发现节点加入并自动删除失效节点的机制
+
 package enode
 
 import (
@@ -84,6 +92,7 @@ func OpenDB(path string) (*DB, error) {
 	return newPersistentDB(path)
 }
 
+// newMemoryNodeDB是存储在内存中的（也就是暂时的不是永久的
 // newMemoryNodeDB creates a new in-memory node database without a persistent backend.
 func newMemoryDB() (*DB, error) {
 	db, err := leveldb.Open(storage.NewMemStorage(), nil)
@@ -93,6 +102,7 @@ func newMemoryDB() (*DB, error) {
 	return &DB{lvl: db, quit: make(chan struct{})}, nil
 }
 
+// newPersistentDB是被备份存储到node database里的
 // newPersistentNodeDB creates/opens a leveldb backed persistent node database,
 // also flushing its contents in case of a version mismatch.
 func newPersistentDB(path string) (*DB, error) {
@@ -296,7 +306,6 @@ func deleteRange(db *leveldb.DB, prefix []byte) {
 // ensureExpirer is a small helper method ensuring that the data expiration
 // mechanism is running. If the expiration goroutine is already running, this
 // method simply returns.
-//
 // The goal is to start the data evacuation only after the network successfully
 // bootstrapped itself (to prevent dumping potentially useful seed nodes). Since
 // it would require significant overhead to exactly trace the first successful
@@ -321,6 +330,8 @@ func (db *DB) expirer() {
 	}
 }
 
+// expire就是过期的意思
+// expireNodes()会迭代node database然后把请求不到的node删除掉
 // expireNodes iterates over the database and deletes all nodes that have not
 // been seen (i.e. received a pong from) for some time.
 func (db *DB) expireNodes() {
@@ -343,6 +354,7 @@ func (db *DB) expireNodes() {
 				youngestPong = time
 			}
 			if time < threshold {
+				// 只要最新一次pong这个节点的ip花的时间长于阈值 就把这个节点的信息删了
 				// Last pong from this IP older than threshold, remove fields belonging to it.
 				deleteRange(db.lvl, nodeItemKey(id, ip, ""))
 			}
@@ -368,7 +380,7 @@ func (db *DB) LastPingReceived(id ID, ip net.IP) time.Time {
 	}
 	return time.Unix(db.fetchInt64(nodeItemKey(id, ip, dbNodePing)), 0)
 }
-
+// update ping是接受上次最新一次请求节点收到的ping 并更新
 // UpdateLastPingReceived updates the last time we tried contacting a remote node.
 func (db *DB) UpdateLastPingReceived(id ID, ip net.IP, instance time.Time) error {
 	if ip = ip.To16(); ip == nil {
@@ -480,6 +492,7 @@ seek:
 	}
 	return nodes
 }
+
 
 // reads the next node record from the iterator, skipping over other
 // database entries.

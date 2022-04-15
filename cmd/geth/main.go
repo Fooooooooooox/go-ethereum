@@ -160,7 +160,7 @@ var (
 		utils.GpoIgnoreGasPriceFlag,
 		utils.MinerNotifyFullFlag,
 		configFileFlag,
-	}
+	}	
 
 	rpcFlags = []cli.Flag{
 		utils.HTTPEnabledFlag,
