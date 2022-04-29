@@ -36,6 +36,7 @@ var (
 	EmptyUncleHash = rlpHash([]*Header(nil))
 )
 
+// nonce是一个64字节的hash 证明了已经付出了足够的算力（要生成的hash前面都是00000非常非常的难）
 // A BlockNonce is a 64-bit hash which proves (combined with the
 // mix-hash) that a sufficient amount of computation has been carried
 // out on a block.

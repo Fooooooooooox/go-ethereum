@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// v r s是什么？
 var (
 	ErrInvalidSig           = errors.New("invalid transaction v, r, s values")
 	ErrUnexpectedProtection = errors.New("transaction type does not supported EIP-155 protected signatures")
@@ -39,6 +40,8 @@ var (
 	ErrGasFeeCapTooLow      = errors.New("fee cap less than base fee")
 	errShortTypedTx         = errors.New("typed transaction too short")
 )
+
+// 三种交易类型 默认为0 不知道iota和那个拓扑学公链有啥关联（
 
 // Transaction types.
 const (
@@ -49,6 +52,7 @@ const (
 
 // Transaction is an Ethereum transaction.
 type Transaction struct {
+	// txdata是交易的核心数据
 	inner TxData    // Consensus contents of a transaction
 	time  time.Time // Time first seen locally (spam avoidance)
 
@@ -68,6 +72,7 @@ func NewTx(inner TxData) *Transaction {
 // TxData is the underlying data of a transaction.
 //
 // This is implemented by DynamicFeeTx, LegacyTx and AccessListTx.
+// txdata构造：
 type TxData interface {
 	txType() byte // returns the type ID
 	copy() TxData // creates a deep copy and initializes all fields
@@ -82,16 +87,19 @@ type TxData interface {
 	value() *big.Int
 	nonce() uint64
 	to() *common.Address
-
+	// 这个v r s怎么从签名中截出来的我还真没找到
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
 }
 
 // EncodeRLP implements rlp.Encoder
+// 不同的交易类型会有不同的rlp encode规则
 func (tx *Transaction) EncodeRLP(w io.Writer) error {
+
 	if tx.Type() == LegacyTxType {
 		return rlp.Encode(w, tx.inner)
 	}
+
 	// It's an EIP-2718 typed TX envelope.
 	buf := encodeBufferPool.Get().(*bytes.Buffer)
 	defer encodeBufferPool.Put(buf)
@@ -110,6 +118,21 @@ func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 
 // MarshalBinary returns the canonical encoding of the transaction.
 // For legacy transactions, it returns the RLP encoding. For EIP-2718 typed
+// legacy transaction vs eip-2718 transaction?
+// legacy应该是最原始的交易类型
+// 1559是和gas升级相关的（可以打小费啥的
+
+// 以太坊上的交易类型？
+// TYPES OF TRANSACTIONS
+// On Ethereum there are a few different types of transactions:
+
+// Regular transactions: a transaction from one wallet to another.
+// regular是从一个钱包地址转账到另一个钱包地址
+// Contract deployment transactions: a transaction without a 'to' address, where the data field is used for the contract code.
+// contract deployment是没有to的 data field是生成的合约的code
+// Execution of a contract: a transaction that interacts with a deployed smart contract. In this case, 'to' address is the smart contract address.
+// Execution of a contract是和智能合约交互的 to是合约地址
+// 来源：https://ethereum.org/en/developers/docs/transactions/
 // transactions, it returns the type and payload.
 func (tx *Transaction) MarshalBinary() ([]byte, error) {
 	if tx.Type() == LegacyTxType {
@@ -122,6 +145,7 @@ func (tx *Transaction) MarshalBinary() ([]byte, error) {
 
 // DecodeRLP implements rlp.Decoder
 func (tx *Transaction) DecodeRLP(s *rlp.Stream) error {
+
 	kind, size, err := s.Kind()
 	switch {
 	case err != nil:
@@ -244,10 +268,12 @@ func (tx *Transaction) Protected() bool {
 }
 
 // Type returns the transaction type.
+// 根据transaction 的tx 来返回交易type
 func (tx *Transaction) Type() uint8 {
 	return tx.inner.txType()
 }
 
+// 这里好像是根据chainid来判断是什么交易（是不是eip1155
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
@@ -292,6 +318,7 @@ func (tx *Transaction) Cost() *big.Int {
 	return total
 }
 
+// V, R, S 是签名中的部分
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 func (tx *Transaction) RawSignatureValues() (v, r, s *big.Int) {

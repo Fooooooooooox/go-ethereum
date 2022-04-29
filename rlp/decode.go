@@ -456,6 +456,7 @@ func makeNilPtrDecoder(etype reflect.Type, etypeinfo *typeinfo, ts rlpstruct.Tag
 	nilKind := typeNilKind(etype, ts)
 
 	return func(s *Stream, val reflect.Value) (err error) {
+		// kind 是返回input的type和size
 		kind, size, err := s.Kind()
 		if err != nil {
 			val.Set(nilPtr)

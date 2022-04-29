@@ -159,6 +159,7 @@ type Signer interface {
 
 	// SignatureValues returns the raw R, S, V values corresponding to the
 	// given signature.
+	// 这个函数就是输入tx 返回R, S, V的
 	SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error)
 	ChainID() *big.Int
 

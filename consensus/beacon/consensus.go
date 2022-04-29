@@ -35,6 +35,7 @@ import (
 var (
 	beaconDifficulty = common.Big0          // The default block difficulty in the beacon consensus
 	beaconNonce      = types.EncodeNonce(0) // The default block nonce in the beacon consensus
+	// 区块还有固定的difficulty和随机数？
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -52,10 +53,13 @@ var (
 // rules or new rules. The transition rule is described in the eth1/2 merge spec.
 // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3675.md
 //
+// beacon是一个半成品共识engine
+// legacy engine是用来完善beacon的（可以是任何的engine
 // The beacon here is a half-functional consensus engine with partial functions which
 // is only used for necessary consensus checks. The legacy consensus engine can be any
 // engine implements the consensus interface (except the beacon itself).
 type Beacon struct {
+	// eth 1是原本的共识engine
 	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 

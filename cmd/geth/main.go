@@ -265,6 +265,8 @@ func init() {
 	}
 }
 
+
+// main.go / main（） - > app.go / Run（） - > app.go / HandleAction（） - > main.go / geth（）
 func main() {
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
