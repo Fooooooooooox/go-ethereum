@@ -51,6 +51,10 @@ import (
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
 // It offers only methods that operate on public data that is freely available to anyone.
+// backend是一个接口
+// 关于go中interface是什么？
+// http://sanyuesha.com/2017/07/22/how-to-understand-go-interface/
+//
 type PublicEthereumAPI struct {
 	b Backend
 }
@@ -279,6 +283,7 @@ type PrivateAccountAPI struct {
 }
 
 // NewPrivateAccountAPI create a new PrivateAccountAPI.
+// 新建一个交易账号api实例
 func NewPrivateAccountAPI(b Backend, nonceLock *AddrLocker) *PrivateAccountAPI {
 	return &PrivateAccountAPI{
 		am:        b.AccountManager(),
@@ -287,6 +292,7 @@ func NewPrivateAccountAPI(b Backend, nonceLock *AddrLocker) *PrivateAccountAPI {
 	}
 }
 
+// 一个节点可以保管许多账号 listaccount可以列出管理的所有账号
 // ListAccounts will return a list of addresses for accounts this node manages.
 func (s *PrivateAccountAPI) ListAccounts() []common.Address {
 	return s.am.Accounts()
