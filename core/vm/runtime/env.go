@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
+// newenv 创建了一个新的evm
 func NewEnv(cfg *Config) *vm.EVM {
 	txContext := vm.TxContext{
 		Origin:   cfg.Origin,

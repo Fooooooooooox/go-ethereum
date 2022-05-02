@@ -80,6 +80,7 @@ type BlockContext struct {
 
 // TxContext provides the EVM with information about a transaction.
 // All fields can change between transactions.
+// txcontext里是传入evm的交易信息
 type TxContext struct {
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
@@ -100,13 +101,18 @@ type EVM struct {
 	Context BlockContext
 	TxContext
 	// StateDB gives access to the underlying state
+	// statedb是最重要的 evm通过改变statedb的状态来实现虚拟机的操作
 	StateDB StateDB
 	// Depth is the current call stack
+	// depth是当前栈的深度？
 	depth int
 
 	// chainConfig contains information about the current chain
 	chainConfig *params.ChainConfig
 	// chain rules contains the chain rules for the current epoch
+	// chainrules是智能合约执行是在以太坊的哪个环境 因为以太坊链进行了许多次升级 有不同的环境
+	// 比如：是不是homestead(Homestead is the second major version of the Ethereum platform and is the first production release of Ethereum. It includes several protocol changes and a networking change that provides the ability to do further network upgrades.)
+	// 是不是IsEIP150, IsEIP155, IsEIP158 什么的
 	chainRules params.Rules
 	// virtual machine configuration options used to initialise the
 	// evm.
@@ -125,6 +131,7 @@ type EVM struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
+// 传入关于执行智能合约的配置信息之后 新建一个evm解释器（evm是不支持多线程的 所以一个evm实例只被使用一次（不支持多线程是什么意思？貌似是只支持一次交易？
 func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig *params.ChainConfig, config Config) *EVM {
 	evm := &EVM{
 		Context:     blockCtx,
@@ -139,6 +146,7 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig
 }
 
 // Reset resets the EVM with a new transaction context.Reset
+// reset是根据你传入的txcontext对evm的信息进行更新
 // This is not threadsafe and should only be done very cautiously.
 func (evm *EVM) Reset(txCtx TxContext, statedb StateDB) {
 	evm.TxContext = txCtx
@@ -165,6 +173,10 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
+// 这个就是调用智能合约的函数的处理
+// contractref 是一个interface type 所有的contractref类型都包含一个Address接口返回common.Address
+// 例如：x 是一个contractref type 你可以通过x.address()来获得x的common.Address
+// 你传入函数的参数转换为byte后写入一个数组 作为input
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
