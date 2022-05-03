@@ -20,10 +20,13 @@ import (
 	"fmt"
 )
 
+// evm的opcode指令在这个文件下定义
+
 // OpCode is an EVM opcode
 type OpCode byte
 
 // IsPush specifies if an opcode is a PUSH opcode.
+// 传入op 看这个op是不是push
 func (op OpCode) IsPush() bool {
 	switch op {
 	case PUSH1, PUSH2, PUSH3, PUSH4, PUSH5, PUSH6, PUSH7, PUSH8, PUSH9, PUSH10, PUSH11, PUSH12, PUSH13, PUSH14, PUSH15, PUSH16, PUSH17, PUSH18, PUSH19, PUSH20, PUSH21, PUSH22, PUSH23, PUSH24, PUSH25, PUSH26, PUSH27, PUSH28, PUSH29, PUSH30, PUSH31, PUSH32:
@@ -119,6 +122,8 @@ const (
 )
 
 // 0x60 range - pushes.
+// iota又是golang里一个比较神奇的东西
+// a = iota 就是a=0 后面接bcdef就被赋值23456
 const (
 	PUSH1 OpCode = 0x60 + iota
 	PUSH2
@@ -219,6 +224,7 @@ const (
 )
 
 // Since the opcodes aren't all in order we can't use a regular slice.
+// 定义一个map 给每一个opcode一个字符串 作为名字
 var opCodeToString = map[OpCode]string{
 	// 0x0 range - arithmetic ops.
 	STOP:       "STOP",
@@ -384,6 +390,8 @@ var opCodeToString = map[OpCode]string{
 	SELFDESTRUCT: "SELFDESTRUCT",
 }
 
+// 给opcode这个type定义一个接口函数
+// 用 op.String()返回opcode的名字（字符串类型
 func (op OpCode) String() string {
 	str := opCodeToString[op]
 	if len(str) == 0 {
@@ -393,6 +401,7 @@ func (op OpCode) String() string {
 	return str
 }
 
+// string 转换为opcode
 var stringToOp = map[string]OpCode{
 	"STOP":           STOP,
 	"ADD":            ADD,

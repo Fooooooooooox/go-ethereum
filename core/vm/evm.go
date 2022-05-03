@@ -33,6 +33,7 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
+	// 这个应该是比较两个big.int的大小 来看余额够不够
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
 	TransferFunc func(StateDB, common.Address, common.Address, *big.Int)
@@ -59,16 +60,20 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 
 // BlockContext provides the EVM with auxiliary information. Once provided
 // it shouldn't be modified.
+// block context是区块的信息 （执行交易的上下文
 type BlockContext struct {
 	// CanTransfer returns whether the account contains
 	// sufficient ether to transfer the value
+	// 检查余额
 	CanTransfer CanTransferFunc
 	// Transfer transfers ether from one account to the other
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
+	// 获取区块的hash
 	GetHash GetHashFunc
 
 	// Block information
+	// coinbase是以太坊账户的地址（是合约地址还是发起地址？）Address represents the 20 byte address of an Ethereum account.
 	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockNumber *big.Int       // Provides information for NUMBER
@@ -415,15 +420,19 @@ func (c *codeAndHash) Hash() common.Hash {
 }
 
 // create creates a new contract using code as deployment code.
+// 创建合约
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address, typ OpCode) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	// 调用栈的深度不能超过 1024
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
+	// 传入evm的statedb（包含账户的余额等信息）保证调用的账户有足够多的余额
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
+	//
 	nonce := evm.StateDB.GetNonce(caller.Address())
 	if nonce+1 < nonce {
 		return nil, common.Address{}, gas, ErrNonceUintOverflow
