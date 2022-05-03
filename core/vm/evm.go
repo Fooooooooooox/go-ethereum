@@ -437,9 +437,11 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if nonce+1 < nonce {
 		return nil, common.Address{}, gas, ErrNonceUintOverflow
 	}
+	// 如果交易成功 caller账户的nonce就会加1（外部账户的nonce表示交易的次数 创建合约也是交易 所以nonce+1
 	evm.StateDB.SetNonce(caller.Address(), nonce+1)
 	// We add this to the access list _before_ taking a snapshot. Even if the creation fails,
 	// the access-list change should not be rolled back
+	// 把地址加入AccessList 不知道啥意思/*/todo
 	if evm.chainRules.IsBerlin {
 		evm.StateDB.AddAddressToAccessList(address)
 	}

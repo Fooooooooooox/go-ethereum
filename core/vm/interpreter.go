@@ -113,9 +113,15 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
 // ErrExecutionReverted which means revert-and-keep-gas-left.
+// 执行evm解释器的函数
+// 传入合约 input参数 和一个布尔值（用来表示你是只读合约还是要写入数据的调用 如果是只读的合约是不消费gas fee的 只返回你读取的结果
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 
 	// Increment the call depth which is restricted to 1024
+	// 为啥depth要小于1024呢？
+	// it is not possible to reach callstack depth 1024, because the max forwarded gas is always 63/64 of the total available gas. The block gas limits need to be of the order of 1e8 ((63/64)^1024) in order to reach this depth.
+	// 因为以太坊的区块大小是有限制的
+	// 调用一次解释器 depth就会加1
 	in.evm.depth++
 	defer func() { in.evm.depth-- }()
 
@@ -128,6 +134,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 	// Reset the previous call's return data. It's unimportant to preserve the old buffer
 	// as every returning call will return new data anyway.
+	// 清空returnData
 	in.returnData = nil
 
 	// Don't bother with the execution if there's no code.
