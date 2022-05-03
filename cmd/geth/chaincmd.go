@@ -42,6 +42,10 @@ import (
 )
 
 var (
+	// 这里定义了geth的commands
+	// initcommand是初始化命令
+	// 初始化生成一个创世区块
+	// 接受通过flag形式传递的参数作为你节点的配置信息（比如lightmode archive fast 测试网等flag设置
 	initCommand = cli.Command{
 		Action:    utils.MigrateFlags(initGenesis),
 		Name:      "init",
@@ -58,6 +62,7 @@ participating.
 
 It expects the genesis file as argument.`,
 	}
+	// dumpgenesis 是把创世区块的配置信息以json格式输出到stdout标准输出文件中（估计是生成一个配置文件到你的geth目录里 config.json之类的东西 里面是你设置的flag参数（更方便
 	dumpGenesisCommand = cli.Command{
 		Action:    utils.MigrateFlags(dumpGenesis),
 		Name:      "dumpgenesis",
@@ -74,6 +79,7 @@ It expects the genesis file as argument.`,
 		Description: `
 The dumpgenesis command dumps the genesis block configuration in JSON format to stdout.`,
 	}
+	// importcommand应该是方便你导入以前已经同步好了的数据
 	importCommand = cli.Command{
 		Action:    utils.MigrateFlags(importChain),
 		Name:      "import",

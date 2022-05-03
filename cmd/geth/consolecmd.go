@@ -16,6 +16,8 @@
 
 package main
 
+// geth的javascript cli客户端配置 ==》 允许你通过geth attach来连接到你的节点 用cli进行javascript交互
+
 import (
 	"fmt"
 	"os"

@@ -265,6 +265,7 @@ func init() {
 	}
 }
 
+// geth的入口函数
 func main() {
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
