@@ -316,7 +316,186 @@ type Backend interface {
 	Engine() consensus.Engine
 }
 ```
+## start node
 
+```go
+func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isConsole bool) {
+	debug.Memsize.Add("node", stack)
+
+	// Start up the node itself
+	utils.StartNode(ctx, stack, isConsole)
+
+	// Unlock any account specifically requested
+	unlockAccounts(ctx, stack)
+
+	// Register wallet event handlers to open and auto-derive wallets
+	events := make(chan accounts.WalletEvent, 16)
+	stack.AccountManager().Subscribe(events)
+
+	// Create a client to interact with local geth node.
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Failed to attach to self: %v", err)
+	}
+	ethClient := ethclient.NewClient(rpcClient)
+
+	go func() {
+		// Open any wallets already attached
+		for _, wallet := range stack.AccountManager().Wallets() {
+			if err := wallet.Open(""); err != nil {
+				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
+			}
+		}
+		// Listen for wallet event till termination
+		for event := range events {
+			switch event.Kind {
+			case accounts.WalletArrived:
+				if err := event.Wallet.Open(""); err != nil {
+					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+				}
+			case accounts.WalletOpened:
+				status, _ := event.Wallet.Status()
+				log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+
+				var derivationPaths []accounts.DerivationPath
+				if event.Wallet.URL().Scheme == "ledger" {
+					derivationPaths = append(derivationPaths, accounts.LegacyLedgerBaseDerivationPath)
+				}
+				derivationPaths = append(derivationPaths, accounts.DefaultBaseDerivationPath)
+
+				event.Wallet.SelfDerive(derivationPaths, ethClient)
+
+			case accounts.WalletDropped:
+				log.Info("Old wallet dropped", "url", event.Wallet.URL())
+				event.Wallet.Close()
+			}
+		}
+	}()
+
+	// Spawn a standalone goroutine for status synchronization monitoring,
+	// close the node when synchronization is complete if user required.
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) {
+		go func() {
+			sub := stack.EventMux().Subscribe(downloader.DoneEvent{})
+			defer sub.Unsubscribe()
+			for {
+				event := <-sub.Chan()
+				if event == nil {
+					continue
+				}
+				done, ok := event.Data.(downloader.DoneEvent)
+				if !ok {
+					continue
+				}
+				if timestamp := time.Unix(int64(done.Latest.Time), 0); time.Since(timestamp) < 10*time.Minute {
+					log.Info("Synchronisation completed", "latestnum", done.Latest.Number, "latesthash", done.Latest.Hash(),
+						"age", common.PrettyAge(timestamp))
+					stack.Close()
+				}
+			}
+		}()
+	}
+
+	// Start auxiliary services if enabled
+	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
+		// Mining only makes sense if a full Ethereum node is running
+		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
+			utils.Fatalf("Light clients do not support mining")
+		}
+		ethBackend, ok := backend.(*eth.EthAPIBackend)
+		if !ok {
+			utils.Fatalf("Ethereum service not running")
+		}
+		// Set the gas price to the limits from the CLI and start mining
+		gasprice := utils.GlobalBig(ctx, utils.MinerGasPriceFlag.Name)
+		ethBackend.TxPool().SetGasPrice(gasprice)
+		// start mining
+		threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name)
+		if err := ethBackend.StartMining(threads); err != nil {
+			utils.Fatalf("Failed to start mining: %v", err)
+		}
+	}
+}
+```
+
+```go
+func (n *Node) Start() error {
+	n.startStopLock.Lock()
+	defer n.startStopLock.Unlock()
+
+	n.lock.Lock()
+	switch n.state {
+	case runningState:
+		n.lock.Unlock()
+		return ErrNodeRunning
+	case closedState:
+		n.lock.Unlock()
+		return ErrNodeStopped
+	}
+	n.state = runningState
+	// open networking and RPC endpoints
+	err := n.openEndpoints()
+	lifecycles := make([]Lifecycle, len(n.lifecycles))
+	copy(lifecycles, n.lifecycles)
+	n.lock.Unlock()
+
+	// Check if endpoint startup failed.
+	if err != nil {
+		n.doClose(nil)
+		return err
+	}
+	// Start all registered lifecycles.
+	var started []Lifecycle
+	for _, lifecycle := range lifecycles {
+		if err = lifecycle.Start(); err != nil {
+			break
+		}
+		started = append(started, lifecycle)
+	}
+	// Check if any lifecycle failed to start.
+	if err != nil {
+		n.stopServices(started)
+		n.doClose(nil)
+	}
+	return err
+}
+```
+
+startnode正式启动节点
+
+传入makefullnode函数生成的stack ，用Start()方法启动
+start 函数：
+
+*Node的lifecycle包含三个状态 INITIALIZING，RUNNING，CLOSED
+
+startnode函数的流程可以用以下这张图来解释：
+
+●───────┐
+     New()
+        │
+        ▼
+  INITIALIZING ────Start()─┐
+        │                  │
+        │                  ▼
+    Close()             RUNNING
+        │                  │
+        ▼                  │
+     CLOSED ──────Close()─┘
+
+传入node 
+如果node处于closed state 关闭线程锁
+如果node处于running state 把线程锁打开 打开网络，rpc端口
+构建一个存放lifecycle的map 遍历每个lifecycle 把每个lifecycle都打开
+
+lifecycle是什么？
+// Lifecycle encompasses the behavior of services that can be started and stopped
+// on the node. Lifecycle management is delegated to the node, but it is the
+// responsibility of the service-specific package to configure and register the
+// service on the node using the `RegisterLifecycle` method.
+
+## closenode
+
+关闭node 释放资源
 
 ## app.Run
 

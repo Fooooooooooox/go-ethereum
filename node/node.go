@@ -162,6 +162,8 @@ func New(conf *Config) (*Node, error) {
 
 // Start starts all registered lifecycles, RPC services and p2p networking.
 // Node can only be started once.
+// /todo/这里的defer用法我无法理解 后面需要仔细学一下
+
 func (n *Node) Start() error {
 	n.startStopLock.Lock()
 	defer n.startStopLock.Unlock()
