@@ -326,11 +326,16 @@ type CheckpointOracleConfig struct {
 // set of configuration options.
 type ChainConfig struct {
 	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-
+	// homestead 是以太坊的第二个major version（也是第一个production release）
 	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
+	// https://github.com/ethereum/homestead-guide/blob/master/source/introduction/the-homestead-release.rst
+	// daofork 是因为一个dao hack事件
+	// the DAO had an ambitious goal—to build a humanless venture capital firm that would allow the investors to make all the decisions through smart contracts.
+	// On June 17th, someone started siphoning money out of the DAO. People were watching in real time as the money was  stolen—like a live video feed of a bank robbery. By the end, the hacker, who has said that he was simply taking advantage of a technical loophole in the DAO, had amassed $50 million in ether, based on current exchange rates.
+	// https://qz.com/730004/everything-you-need-to-know-about-the-ethereum-hard-fork/
+	DAOForkBlock *big.Int `json:"daoForkBlock,omitempty"` // TheDAO hard-fork switch block (nil = no fork)
 
-	DAOForkBlock   *big.Int `json:"daoForkBlock,omitempty"`   // TheDAO hard-fork switch block (nil = no fork)
-	DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
+	DAOForkSupport bool `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
 
 	// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
 	EIP150Block *big.Int    `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
@@ -351,9 +356,15 @@ type ChainConfig struct {
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
+	// total dificulty 达到某个阈值就会引发consensus upgrade？
+	// difficulty: QUANTITY - integer of the difficulty for this block.
+	// totalDifficulty: QUANTITY - integer of the total difficulty of the chain until this block.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
 
 	// Various consensus engines
+	// ethash 和 Clique都是共识相关的
+	// ethash是pow
+	// clique是poa
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
 }

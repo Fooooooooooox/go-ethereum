@@ -46,6 +46,7 @@ var (
 	// initcommand是初始化命令
 	// 初始化生成一个创世区块
 	// 接受通过flag形式传递的参数作为你节点的配置信息（比如lightmode archive fast 测试网等flag设置
+	// 需要传入genesis file （可以指定网络是主网还是测试网
 	initCommand = cli.Command{
 		Action:    utils.MigrateFlags(initGenesis),
 		Name:      "init",
@@ -117,6 +118,7 @@ with several RLP-encoded blocks, or several files can be used.
 If only one file is used, import error will result in failure. If several files are used,
 processing will proceed even if an individual RLP-file import failure occurs.`,
 	}
+	// exportcommand是导出区块数据到文件中
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
 		Name:      "export",
@@ -167,6 +169,7 @@ The export-preimages command exports hash preimages to an RLP encoded stream.
 It's deprecated, please use "geth db export" instead.
 `,
 	}
+	// dump区块状态到一个文件中
 	dumpCommand = cli.Command{
 		Action:    utils.MigrateFlags(dump),
 		Name:      "dump",
@@ -193,6 +196,7 @@ This command dumps out the state for a given block (or latest, if none provided)
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
 	// Make sure we have a valid genesis JSON
+	// 从你指定的genesis path中读取到关于genesis配置的json文件
 	genesisPath := ctx.Args().First()
 	if len(genesisPath) == 0 {
 		utils.Fatalf("Must supply path to genesis JSON file")
@@ -203,6 +207,7 @@ func initGenesis(ctx *cli.Context) error {
 	}
 	defer file.Close()
 
+	// core.Genesis是一个type
 	genesis := new(core.Genesis)
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
 		utils.Fatalf("invalid genesis file: %v", err)

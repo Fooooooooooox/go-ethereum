@@ -46,7 +46,10 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
 // fork switch-over blocks through the chain configuration.
+// genesis block的配置
 type Genesis struct {
+	// chainconfig里可以指定你选择哪一个分支（比如hometead daofork) ==> 同步这种废弃的分支来做啥？==》一般是用来测试
+	// https://ethereum.stackexchange.com/questions/2851/how-can-i-reliably-induce-a-blockchain-fork-for-testing-purposes。
 	Config     *params.ChainConfig `json:"config"`
 	Nonce      uint64              `json:"nonce"`
 	Timestamp  uint64              `json:"timestamp"`
