@@ -59,10 +59,10 @@ type stateObject struct {
 
 db是存储状态的数据库，支持对账户信息进行读、写、改等操作
 trie是可以修改的状态树，是合约账户调用函数的时候使用的，合约中永久改变的值会被记录在这里（比如nft合约的ipfs地址啥的），包含了以下四种storage：
-1. originStorage
-2. pendingStorage
-3. dirtyStorage
-4. fakeStorage（在debugging的时候生成
+1. originStorage （原始的storage 每次交易前都会reset）
+2. pendingStorage（处在区块链最末端的storage 等待被加入磁盘）
+3. dirtyStorage（dirty storage是用来存储被改变了的状态 上传的时候只要上传dirty storage）
+4. fakeStorage（在debugging的时候使用）
    如果是debug形式的，加载的东西会被放到fakestorage中，修改后的state会被临时更新到temporary state。
 
 code是你在调用合约时使用的code，会在合约加载的时候被存放到内存中，用来调用。
@@ -94,12 +94,12 @@ code是你在调用合约时使用的code，会在合约加载的时候被存放
    你输入key的hash之后会返回对应的value   
    获取分为三层：
    1. 如果storage trie中设置了fake storage，直接返回fake storage中的值（fake是在debug的时候生成的
-   2. 如果设置了dirty storage，返回dirty中的值
-   3. 否则调用GetCommittedState，返回original value
+   2. 如果有dirty storage，返回dirty中的值
+   3. 否则调用GetCommittedState，返回original value（没有改变状态）
    
    GetCommittedState是从已经提交到以太坊上的storage trie中获取值，获取也分三层：
    1. 先尝试从fake storage中获取
-   2. 尝试从pending storage和cache中获取（pending是已经提交了但是还未真正完成的状态
+   2. 尝试从pending storage和cache中获取（pending是已经提交了但是还未写入磁盘的状态）
    3. 如果上面的途径都失败了，从快照中获取
    4. 如果快照失败了（轻节点不保存完整快照，只保存最近的快照），直接从数据库中获取
    
@@ -118,6 +118,3 @@ code是你在调用合约时使用的code，会在合约加载的时候被存放
    1. 创建一个usedStorage的map对象 usedStorage := make([][]byte, 0, len(s.pendingStorage))，遍历pending storage内的所有键值对（跳过和原来相比没有发生改变的），在对pending storage内的值进行rlp encode编码之后，写入originStorage。
 8. 如果有state 快照的话，把更改后的storage存到缓存
 
-9. 
- 
-10. 
