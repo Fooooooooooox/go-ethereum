@@ -229,7 +229,33 @@ type Contract struct {
 
 ```
 
+## stack变量
+
+stack       = newstack()  // local stack会生成一个栈的对象，newStack的定义如下：
+
+stack就是一个数组，里面的元素是uint256.Int。
+
+stack有一些操作方法：push pop len dup等。
+
+这些都是一些栈的操作
+
+比如push是把一个uint256.Int的指针写入栈的数组中。
+所以栈里面保存的不是这个值，而是这个值的指针内存位置。
+pop是把数组切块，把末尾的那个指针给删了.
+peek是返回栈的末尾的一个数。
+(我写了个程序实现了一下栈的操作 在go_learning_booking_app里)
+
+
+```go
+type Stack struct {
+	data []uint256.Int
+}
+```
+
+
+### Run里的for循环
 比较复杂且重要的是下面这个for循环(我看的时候先忽略了debug模式下的处理：
+
 ```go
 	for {
 		if in.cfg.Debug {
@@ -307,6 +333,132 @@ func (c *Contract) GetOp(n uint64) OpCode {
 }
 ```
 
+拿到op后把op作为一个索引，从jumptable中找到对应的operation
+
+中间是一些不太重要的，比如对stack进行长度检查，计算gas消耗等等。
+
+执行operation的代码：
+res, err = operation.execute(&pc, in, callContext)
+这里有点奇怪的是为什么这句语句直接写在了for循环之中，最终直接返回了这个res？
+==》
+应该是因为operation.execute函数本身就是对res进行了一个append的处理，而不是直接replace。
+具体看一下operation.execute函数：
+operation := in.cfg.JumpTable[op]，execute是它的一个interface功能 
+core/vm/jump_table.go中有一句：
+type JumpTable [256]*operation
+
+### operation & jumptable
+
+说明JumpTable是一个存放operation指针的数组，不一样的分支会有不一样的chainconfig，jumptable内的operation指针也就不一样。
+operation的定义如下：
+```go
+type operation struct {
+	// execute is the operation function
+	execute     executionFunc
+	constantGas uint64
+	dynamicGas  gasFunc
+	// minStack tells how many stack items are required
+	minStack int
+	// maxStack specifies the max length the stack can have for this operation
+	// to not overflow the stack.
+	maxStack int
+
+	// memorySize returns the memory size required for the operation
+	memorySize memorySizeFunc
+}
+```
+
+我看了一下生成jumptable的代码，一开始没看懂，因为他定义了一连串的 instructionset生成的函数，最上面那个函数一连串地调用下面的函数。
+
+看懂了其实很简单：
+
+最下面定义的newFrontierInstructionSet函数只包含了最基础需要的opcode，其他的instructionset函数都是在这个基础上新增新的指令。这和以太坊升级的过程是一样的，每次升级都会在原有指令的基础上新增一些指令。
+
+
+```go
+// newLondonInstructionSet returns the frontier, homestead, byzantium,
+// contantinople, istanbul, petersburg, berlin and london instructions.
+func newLondonInstructionSet() JumpTable {
+	instructionSet := newBerlinInstructionSet()
+	enable3529(&instructionSet) // EIP-3529: Reduction in refunds https://eips.ethereum.org/EIPS/eip-3529
+	enable3198(&instructionSet) // Base fee opcode https://eips.ethereum.org/EIPS/eip-3198
+	return validate(instructionSet)
+}
+```
+
+### operation.execut
+继续看operation.execute函数。
+for循环中每次都会调用这个operation.execute函数：res, err = operation.execute(&pc, in, callContext)。所以具体看下execute函数的内容就知道虚拟机指令是如何执行的了。
+
+execute是operation type中的参数，如下：
+另外的参数都很简单，关于dynamic gas在下面做出说明：
+
+```go
+type operation struct {
+	// execute is the operation function
+	execute     executionFunc
+	constantGas uint64
+	dynamicGas  gasFunc
+	// minStack tells how many stack items are required
+	minStack int
+	// maxStack specifies the max length the stack can have for this operation
+	// to not overflow the stack.
+	maxStack int
+
+	// memorySize returns the memory size required for the operation
+	memorySize memorySizeFunc
+}
+```
+
+拿个最简单的add指令来看下：
+
+```go
+ADD: {
+    execute:     opAdd,
+    constantGas: GasFastestStep,
+    minStack:    minStack(2, 1),
+    maxStack:    maxStack(2, 1),
+}
+```
+GasFastestStep是constant gas，GasFastestStep uint64 = 3。执行一次add指令gas就加3。
+
+minstack和maxstack是在core/vm/stack_table.go中被定义的。
+
+```go
+func maxStack(pop, push int) int {
+	return int(params.StackLimit) + pop - push
+}
+func minStack(pops, push int) int {
+	return pops
+}
+```
+输入pop和push两个整数，minstack返回pop，maxstack返回int(params.StackLimit) + pop - push。
+params.StackLimit被记录在params/protocol_params.go中，StackLimit   uint64 = 1024  // Maximum size of VM stack allowed.
+它定义了vm最深栈的深度。
+
+pop是把一个参数弹出栈，push是把一个参数压入栈，所以：
+指令的最大栈深度 = 虚拟机栈的深度 + pop - push
+指令的最小栈深度 = pops
+
+重点看opAdd这个execute函数
+```go
+func opAdd(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	x, y := scope.Stack.pop(), scope.Stack.peek()
+	y.Add(&x, y)
+	return nil, nil
+}
+```
+Stack.pop()对把栈最末尾的数踢出去了，被踢出去的这个值赋值给了x。
+被pop过的栈调用scope.Stack.peek()，返回现在栈的最末尾的值，赋值给了y。
+然后
+
+
+
+## 关于dynamic gas和constant gas
+
+https://ethereum.org/en/developers/docs/gas/
+
+在伦敦升级前，以太坊的区块大小是固定的，在需求很大的时候人们将交易写入区块的等待时间就会变得很长。在伦敦升级之后，区块的大小被改成了一个浮动的区间，区块大小有了一个target：15million的gas，也就是区块大小的均值为15，同时会随着区块的需求大小变化而变化（不过有一个30的上限）。
 
 
 
