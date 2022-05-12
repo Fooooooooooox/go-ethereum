@@ -47,7 +47,8 @@ bootnode是一定要有公网静态ip的 他不会同步链上信息 但是你�
 
 bootnode -nodekey boot.key -verbosity 9 -addr :30310
 
+对node1
+geth --datadir node1/ --syncmode 'full' --port 30311 --rpc --rpcaddr 'localhost' --rpcport 8501 --rpcapi 'personal,db,eth,net,web3,txpool,miner' --bootnodes 'enode://e53780928a40317b88f8432b78d692a45079f21b19edc2e4322d1751df37baf6f9705b5c66e3e7c5f7e722f33a8dcde7a944ad15c7af3b58daed1ad238f58dc7@127.0.0.1:0?discport=30310' --networkid 1161 --gasprice '1' -unlock '0x42d1cb266254d66f4dcfdabc37a272ef214ff995' --password node1/password.txt --mine
 
-## 启动节点
-
-geth --datadir node1/ --syncmode 'full' --port 30311 --rpc --rpcaddr 'localhost' --rpcport 8501 --rpcapi 'personal,db,eth,net,web3,txpool,miner' --bootnodes 'enode://3ec4fef2d726c2c01f16f0a0030f15dd5a81e274067af2b2157cafbf76aa79fa9c0be52c6664e80cc5b08162ede53279bd70ee10d024fe86613b0b09e1106c40@127.0.0.1:30310' --networkid 1515 --gasprice '1' -unlock '0x87366ef81db496edd0ea2055ca605e8686eec1e6' --password node1/password.txt --mine
+networkid可以在devnet/foooox2.json里找到
+unlock是你要解锁的地址
