@@ -71,3 +71,22 @@
 21:53:43.562471 version@stat F·[2 1] S·505B[324B 181B] Sc·[0.50 0.00]
 21:53:43.648493 db@janitor F·5 G·0
 21:53:43.648715 db@open done T·110.360833ms
+=============== May 12, 2022 (CST) ===============
+17:01:22.588116 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:01:22.588569 version@stat F·[2 1] S·505B[324B 181B] Sc·[0.50 0.00]
+17:01:22.588590 db@open opening
+17:01:22.588650 journal@recovery F·1
+17:01:22.590329 journal@recovery recovering @19
+17:01:22.591492 version@stat F·[2 1] S·505B[324B 181B] Sc·[0.50 0.00]
+17:01:22.706253 db@janitor F·5 G·0
+17:01:22.706354 db@open done T·117.745084ms
+=============== May 12, 2022 (CST) ===============
+17:01:26.774923 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:01:26.775070 version@stat F·[2 1] S·505B[324B 181B] Sc·[0.50 0.00]
+17:01:26.775086 db@open opening
+17:01:26.775128 journal@recovery F·1
+17:01:26.776133 journal@recovery recovering @21
+17:01:26.811227 memdb@flush created L0@23 N·1 S·162B "loc..seq,v14":"loc..seq,v14"
+17:01:26.812398 version@stat F·[3 1] S·667B[486B 181B] Sc·[0.75 0.00]
+17:01:26.904367 db@janitor F·6 G·0
+17:01:26.904399 db@open done T·129.299958ms

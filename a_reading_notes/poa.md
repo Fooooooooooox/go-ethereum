@@ -18,14 +18,16 @@ Path of the secret key file: node0/keystore/UTC--2022-05-11T12-51-02.847378000Z-
 ```
 
 ```shell
+Public address of the key:   0x27f69FEB9FaF2d4c76e4107A65F8271F39AC2004
+Path of the secret key file: node1/keystore/UTC--2022-05-11T12-53-14.224955000Z--27f69feb9faf2d4c76e4107a65f8271f39ac2004
+```
+
+```shell
 Public address of the key:   0x175d78f97FB658906a589ecDbf13a2d0B6Bbd5f6
 Path of the secret key file: node2/keystore/UTC--2022-05-11T12-52-21.711665000Z--175d78f97fb658906a589ecdbf13a2d0b6bbd5f6
 ```
 
-```shell
-Public address of the key:   0x27f69FEB9FaF2d4c76e4107A65F8271F39AC2004
-Path of the secret key file: node1/keystore/UTC--2022-05-11T12-53-14.224955000Z--27f69feb9faf2d4c76e4107a65f8271f39ac2004
-```
+
 
 ## puppeth基础配置
 
@@ -34,8 +36,8 @@ puppeth是私人网络管理的交互式工具 他允许你根据传入的创世
 配置比较简单 按照指示来就可以
 
 1. 选择configure new genesis 输入一系列配置
-2. 
-3. Manage existing genesis 然后导出配置文件
+
+2. Manage existing genesis 然后导出配置文件
 
 不过其中有个设置栈是：Which accounts are allowed to seal? (mandatory at least one)
 
@@ -61,11 +63,11 @@ cd build/bin/
 ```
 
 ```shell
-geth --datadir node0 --port 30000 --nodiscover --unlock '0' --password "node0/keystore/UTC--2022-05-11T12-51-02.847378000Z--335572b5fa4d1f8bc6310002e35a1187a676cea9"
+geth --datadir node0 --port 30000 --nodiscover --unlock '0x335572b5fa4D1f8Bc6310002E35a1187A676cEA9' --password "/Users/foooox/go-ethereum/build/bin/node0/keystore/UTC--2022-05-11T12-51-02.847378000Z--335572b5fa4d1f8bc6310002e35a1187a676cea9"
 ```
 
 ```shell
-geth --datadir node1 --port 30001 --nodiscover --unlock '0' --password "node1/keystore/UTC--2022-05-11T12-53-14.224955000Z--27f69feb9faf2d4c76e4107a65f8271f39ac2004"
+geth --datadir node1 --port 30001 --nodiscover --unlock '0x27f69FEB9FaF2d4c76e4107A65F8271F39AC2004' --password "node1/keystore/UTC--2022-05-11T12-53-14.224955000Z--27f69feb9faf2d4c76e4107a65f8271f39ac2004"
 ```
 
 ```shell
@@ -96,6 +98,19 @@ Fatal: Failed to unlock account 0 (could not decrypt key with given password)
 ```
 
 
-## 添加节点
+## 建立每个节点之间的peer关系
 
+给node0增加node1和node2的地址
+
+给node1增加node0和node2的地址
+
+给node2增加node0和node1的地址
+
+node0:
 admin.addPeer("enode://1e034ad860b0c9aa779c9c34fcf42b9bea72338b8909919b7a39ec64e0240ea127f04b195dc53b43730091d39495d53177f47618615ed21df9a41ab54d7c6d9c@127.0.0.1:30000?discport=0")
+
+node1:
+admin.addPeer("enode://3341b97fd6bc6ee8d59741d9deb8838a99be6da4f22c6605d29d12ac4f6241715f1aea7da3495d7e9aaaffbb7712fe7ad5033bcb3595a635a042372732ad49b1@127.0.0.1:30001?discport=0")
+
+node2:
+admin.addPeer("enode://26ff926ee12979eccf42e0fc1f2987078a1a32674da55abe4c59a7180ace4e1822b8292ab17351617ddd77f1de6395f54342b0ae2edba023a9e3c564ff05b303@127.0.0.1:30002?discport=0")

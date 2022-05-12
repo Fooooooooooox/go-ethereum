@@ -1,0 +1,32 @@
+=============== May 12, 2022 (CST) ===============
+17:40:56.151405 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:40:56.216895 db@open opening
+17:40:56.219709 version@stat F·[] S·0B[] Sc·[]
+17:40:56.248053 db@janitor F·2 G·0
+17:40:56.248095 db@open done T·30.980708ms
+17:40:56.255070 db@close closing
+17:40:56.255497 db@close done T·421.042µs
+=============== May 12, 2022 (CST) ===============
+19:57:35.832892 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+19:57:35.833213 version@stat F·[] S·0B[] Sc·[]
+19:57:35.833229 db@open opening
+19:57:35.833281 journal@recovery F·1
+19:57:35.833548 journal@recovery recovering @1
+19:57:35.856554 memdb@flush created L0@2 N·626 S·50KiB "\x02d\xfc..\x19Ba,v432":"\xfe\x88\xcf..H\xef\xcc,v365"
+19:57:35.857916 version@stat F·[1] S·50KiB[50KiB] Sc·[0.25]
+19:57:35.941831 db@janitor F·3 G·0
+19:57:35.941869 db@open done T·108.627375ms
+19:57:35.946239 db@close closing
+19:57:35.946318 db@close done T·78.5µs
+=============== May 12, 2022 (CST) ===============
+22:00:27.139782 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+22:00:27.140492 version@stat F·[1] S·50KiB[50KiB] Sc·[0.25]
+22:00:27.140514 db@open opening
+22:00:27.140582 journal@recovery F·1
+22:00:27.143067 journal@recovery recovering @3
+22:00:27.161336 memdb@flush created L0@5 N·1 S·387B "eth..\x12\x10\xa3,v628":"eth..\x12\x10\xa3,v628"
+22:00:27.162615 version@stat F·[2] S·51KiB[51KiB] Sc·[0.50]
+22:00:27.260772 db@janitor F·4 G·0
+22:00:27.260893 db@open done T·120.362333ms
+22:00:27.266950 db@close closing
+22:00:27.267033 db@close done T·81.666µs
