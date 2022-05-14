@@ -60,6 +60,8 @@ var (
 	extraVanity = 32                     // Fixed number of extra-data prefix bytes reserved for signer vanity
 	extraSeal   = crypto.SignatureLength // Fixed number of extra-data suffix bytes reserved for signer seal
 
+	// 如果投票人同意 nonceAuthVote 赋值0xffffffffffffffff
+	// 如果投票人不同意 nonceDropVote 赋值0x0000000000000000
 	nonceAuthVote = hexutil.MustDecode("0xffffffffffffffff") // Magic nonce number to vote on adding a new signer
 	nonceDropVote = hexutil.MustDecode("0x0000000000000000") // Magic nonce number to vote on removing a signer.
 
@@ -142,20 +144,26 @@ var (
 // SignerFn hashes and signs the data to be signed by a backing account.
 type SignerFn func(signer accounts.Account, mimeType string, message []byte) ([]byte, error)
 
+// ecrecover函数会从一个签名header中恢复出ethereum地址
 // ecrecover extracts the Ethereum account address from a signed header.
 func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, error) {
 	// If the signature's already cached, return that
+	// 恢复过的一些地址会保存在sigcache中
 	hash := header.Hash()
 	if address, known := sigcache.Get(hash); known {
 		return address.(common.Address), nil
 	}
+	// 签名是存储在 header中的extra data中的
+	// extraseal是一个常数 extraSeal   = crypto.SignatureLength // Fixed number of extra-data suffix bytes reserved for signer seal
 	// Retrieve the signature from the header extra-data
+	// 如果header中的extra部分长度小于extraSeal 就报错 没有提供正确的签名数据
 	if len(header.Extra) < extraSeal {
 		return common.Address{}, errMissingSignature
 	}
 	signature := header.Extra[len(header.Extra)-extraSeal:]
 
 	// Recover the public key and the Ethereum address
+	// 用crypto.Ecrecover来从header和签名中恢复出公钥（椭圆曲线加密）
 	pubkey, err := crypto.Ecrecover(SealHash(header).Bytes(), signature)
 	if err != nil {
 		return common.Address{}, err
@@ -163,12 +171,16 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	var signer common.Address
 	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
 
+	// 在拿到签名的地址之后 把数据存入到cache中方便下次调用（键是hash 值是签名地址
 	sigcache.Add(hash, signer)
 	return signer, nil
 }
 
 // Clique is the proof-of-authority consensus engine proposed to support the
 // Ethereum testnet following the Ropsten attacks.
+// Ropsten是之前的测试网 使用的是pow算法 因为测试网对网络算力的要求非常低 所以经常收到恶意攻击 受到攻击之后就需要重启网络
+// 所以才推出了poa 虽然中心化一些 但是不用重启了
+// 定义了一个clique类 下面new新建poa共识引擎的时候返回的东西就是这个type的
 type Clique struct {
 	config *params.CliqueConfig // Consensus engine configuration parameters
 	db     ethdb.Database       // Database to store and retrieve snapshot checkpoints
@@ -183,14 +195,17 @@ type Clique struct {
 	lock   sync.RWMutex   // Protects the signer fields
 
 	// The fields below are for testing only
+	// poa是没有区块难度值的 所以这个直接被搞成一个bool值；
 	fakeDiff bool // Skip difficulty verifications
 }
 
 // New creates a Clique proof-of-authority consensus engine with the initial
 // signers set to the ones provided by the user.
+// new创建一个新的pos共识引擎
 func New(config *params.CliqueConfig, db ethdb.Database) *Clique {
 	// Set any missing consensus parameters to their defaults
 	conf := *config
+	// epoch length是用来防止投票一直没法结束的情况 如果传入的配置中epoch等于0 就将epochLength赋予epoch
 	if conf.Epoch == 0 {
 		conf.Epoch = epochLength
 	}
@@ -207,6 +222,10 @@ func New(config *params.CliqueConfig, db ethdb.Database) *Clique {
 	}
 }
 
+// author函数是clique类的函数 传入clique
+// 传入header 和 clique引擎中的签名
+// 调用前面定义的ecrecover函数 如果heder能在ache中找到的话直接返回缓存的地址
+// 如果没能找到header的话就调用函数恢复签名
 // Author implements consensus.Engine, returning the Ethereum address recovered
 // from the signature in the header's extra-data section.
 func (c *Clique) Author(header *types.Header) (common.Address, error) {
@@ -218,6 +237,7 @@ func (c *Clique) VerifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	return c.verifyHeader(chain, header, nil)
 }
 
+// verify是用来检查一个链的header是否符合共识机制的规则 这个是大写的 导出的是这个（小写的里面有详细检验逻辑）
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers. The
 // method returns a quit channel to abort the operations and a results channel to
 // retrieve the async verifications (the order is that of the input slice).
@@ -228,7 +248,6 @@ func (c *Clique) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 	go func() {
 		for i, header := range headers {
 			err := c.verifyHeader(chain, header, headers[:i])
-
 			select {
 			case <-abort:
 				return
@@ -239,10 +258,12 @@ func (c *Clique) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*typ
 	return abort, results
 }
 
+// 这个verifyheader是具体检查head的
 // verifyHeader checks whether a header conforms to the consensus rules.The
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
+//
 func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.Header, parents []*types.Header) error {
 	if header.Number == nil {
 		return errUnknownBlock
@@ -254,11 +275,20 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return consensus.ErrFutureBlock
 	}
 	// Checkpoint blocks need to enforce zero beneficiary
+
+	// 当区块高度是epoch的整数倍 checkpoint为1 否则为0
 	checkpoint := (number % c.config.Epoch) == 0
+	// 如果checkpoint为1（不是epoch的整数倍）且header中coinbase的地址和common中的不一样 就报错InvalidCheckpointBeneficiary
+	// 这里的common.address不知道是啥/*todo*/
+	// 在poa中 coinbase里存储的是投票人的地址（出块人的地址是通过恢复记录clique类中的signature来得到的
+	// pos中coinbase存储出块人地址
 	if checkpoint && header.Coinbase != (common.Address{}) {
 		return errInvalidCheckpointBeneficiary
 	}
 	// Nonces must be 0x00..0 or 0xff..f, zeroes enforced on checkpoints
+	// Nonce字段在ethash中用来作为一个变量调整Header的哈希。在clique中没有这个需求，因此直接用来保存投票目的。
+	// 如果值为nonceAuthVote(0xffffffffffffffff)则代表这是一次授权投票；如果值为nonceDropVote(0x0000000000000000)则代表这是一次踢出投票。
+	// 这个是限制你投票的内容 只能是定义中的nonceAuthVote或者nonceDropVote 否则就是无效的投票
 	if !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidVote
 	}
