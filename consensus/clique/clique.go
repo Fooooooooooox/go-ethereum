@@ -156,10 +156,15 @@ func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, er
 	// 签名是存储在 header中的extra data中的
 	// extraseal是一个常数 extraSeal   = crypto.SignatureLength // Fixed number of extra-data suffix bytes reserved for signer seal
 	// Retrieve the signature from the header extra-data
-	// 如果header中的extra部分长度小于extraSeal 就报错 没有提供正确的签名数据
+	// 如果header中的extra部分长度小于extraSeal长度 就报错
+	// 关于extra：
+	// 在pow算法中 extra里包含了vanity和seal数据
+	// poa中则在extra中新增了签名者的地址数据
+	// extra的结构是：vanityData(固定32字节)+signer1Address+signer2Address+...+SealData(固定65字节)
 	if len(header.Extra) < extraSeal {
 		return common.Address{}, errMissingSignature
 	}
+	// 所以signature是extradata中截的一小块
 	signature := header.Extra[len(header.Extra)-extraSeal:]
 
 	// Recover the public key and the Ethereum address
@@ -292,10 +297,12 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	if !bytes.Equal(header.Nonce[:], nonceAuthVote) && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidVote
 	}
+	// 如果checkpoint为1 高度是epoch的整数倍了 就不需要投票了
 	if checkpoint && !bytes.Equal(header.Nonce[:], nonceDropVote) {
 		return errInvalidCheckpointVote
 	}
 	// Check that the extra-data contains both the vanity and signature
+	// extraVanity = 32是一个常数 extraVanity = 32 检验区块中的extradata的长度（这个是
 	if len(header.Extra) < extraVanity {
 		return errMissingVanity
 	}
