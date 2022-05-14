@@ -302,7 +302,7 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 		return errInvalidCheckpointVote
 	}
 	// Check that the extra-data contains both the vanity and signature
-	// extraVanity = 32是一个常数 extraVanity = 32 检验区块中的extradata的长度（这个是
+	// extraVanity = 32是一个常数 extraVanity = 32 检验区块中的extradata的长度正不正确（前面有详细说明
 	if len(header.Extra) < extraVanity {
 		return errMissingVanity
 	}
@@ -321,20 +321,35 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	if header.MixDigest != (common.Hash{}) {
 		return errInvalidMixDigest
 	}
+	// poa中是没有叔块的
+	// 关于叔块（在看pow的时候会详细看
+	// 贴一段解释：
+	// Uncle blocks are created when two blocks are mined and broadcasted at the same time (with the same block number). Since only one of the blocks can enter the primary Ethereum chain, the block that gets validated across more nodes becomes the canonical block, and the other one becomes what is known as an uncle block.
+	// 叔块的设置就是为了解决两个矿工同时出块的情况
+	// 被更多节点验证的区块成为canonical 另外那个成为叔块 叔块上的交易是起实际作用的 不会改变区块状态 但会收到一定奖励
 	// Ensure that the block doesn't contain any uncles which are meaningless in PoA
+	// poa的机制是没有叔块的
+	// 所以header里的叔块hash要等于nil的hash uncleHash = types.CalcUncleHash(nil)
 	if header.UncleHash != uncleHash {
 		return errInvalidUncleHash
 	}
 	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+	// 这个是保证header中的difficulty的意义
+	// pow中difficulty是区块难度 poa中的difficulty是用来表示由谁来出块的
+	// diffInTurn = big.NewInt(2) 表示轮到header这个人出块了
+	// diffNoTurn = big.NewInt(1) 表示没轮到
 	if number > 0 {
 		if header.Difficulty == nil || (header.Difficulty.Cmp(diffInTurn) != 0 && header.Difficulty.Cmp(diffNoTurn) != 0) {
 			return errInvalidDifficulty
 		}
 	}
+	// 保证header里的gaslimit小于 2^63-1
+	// 这个值是小于pow中的gas limit的 为了降低测试网对硬件的要求
 	// Verify that the gas limit is <= 2^63-1
 	if header.GasLimit > params.MaxGasLimit {
 		return fmt.Errorf("invalid gasLimit: have %v, max %v", header.GasLimit, params.MaxGasLimit)
 	}
+	// 如果所有check都通过了 最后一个是检查你会不会跑到一个奇怪的分支去（具体没看 不重要
 	// If all checks passed, validate any special fields for hard forks
 	if err := misc.VerifyForkHashes(chain.Config(), header, false); err != nil {
 		return err
@@ -343,6 +358,7 @@ func (c *Clique) verifyHeader(chain consensus.ChainHeaderReader, header *types.H
 	return c.verifyCascadingFields(chain, header, parents)
 }
 
+// 这个是用于多线程验证header的 不是核心 暂时不看
 // verifyCascadingFields verifies all the header fields that are not standalone,
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
@@ -402,6 +418,7 @@ func (c *Clique) verifyCascadingFields(chain consensus.ChainHeaderReader, header
 	return c.verifySeal(snap, header, parents)
 }
 
+// 快照（和之前的逻辑一样 省略
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (c *Clique) snapshot(chain consensus.ChainHeaderReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
@@ -492,17 +509,21 @@ func (c *Clique) VerifyUncles(chain consensus.ChainReader, block *types.Block) e
 	return nil
 }
 
+// 这个函数检查extradata的seal部分
+// 摘录：（Seal 为给定的输入块生成一个新的密封请求（新的区块），并将结果推送到给定的通道中
 // verifySeal checks whether the signature contained in the header satisfies the
 // consensus protocol requirements. The method accepts an optional list of parent
 // headers that aren't yet part of the local blockchain to generate the snapshots
 // from.
 func (c *Clique) verifySeal(snap *Snapshot, header *types.Header, parents []*types.Header) error {
 	// Verifying the genesis block is not supported
+	// 创世区块不用verify seal
 	number := header.Number.Uint64()
 	if number == 0 {
 		return errUnknownBlock
 	}
 	// Resolve the authorization key and check against signers
+	// 尝试恢复签名者
 	signer, err := ecrecover(header, c.signatures)
 	if err != nil {
 		return err
@@ -510,6 +531,7 @@ func (c *Clique) verifySeal(snap *Snapshot, header *types.Header, parents []*typ
 	if _, ok := snap.Signers[signer]; !ok {
 		return errUnauthorizedSigner
 	}
+	// recent是一个数组 包含了最近几次出块者的地址 如果该header的地址在这个列表里 也就是是最近才出过的 说明这是一个spam
 	for seen, recent := range snap.Recents {
 		if recent == signer {
 			// Signer is among recents, only fail if the current block doesn't shift it out
@@ -531,6 +553,7 @@ func (c *Clique) verifySeal(snap *Snapshot, header *types.Header, parents []*typ
 	return nil
 }
 
+// prepare函数是对new生成的clique共识引擎进行完善 填入一些field
 // Prepare implements consensus.Engine, preparing all the consensus fields of the
 // header for running the transactions on top.
 func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
