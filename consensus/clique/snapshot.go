@@ -139,6 +139,7 @@ func (s *Snapshot) copy() *Snapshot {
 // validVote returns whether it makes sense to cast the specified vote in the
 // given snapshot context (e.g. don't try to add an already authorized signer).
 func (s *Snapshot) validVote(address common.Address, authorize bool) bool {
+
 	_, signer := s.Signers[address]
 	return (signer && !authorize) || (!signer && authorize)
 }
@@ -306,19 +307,30 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 	return snap, nil
 }
 
+// singers中保存了所有的授权签名者（也就是出块者） 按顺序
 // signers retrieves the list of authorized signers in ascending order.
 func (s *Snapshot) signers() []common.Address {
+	// 新建一个数组 里面是common.Adress类型的数据
 	sigs := make([]common.Address, 0, len(s.Signers))
+	// 从s.Signers获取到地址放到sig列表中
 	for sig := range s.Signers {
 		sigs = append(sigs, sig)
 	}
+	// 我把snapshot的定义复制过来了：Singers 是一个map数组 键是common.Address 值是空的struct 空的structuct的用法在另一个仓库里我写了
+	// type Snapshot struct {
+	// ···
+	// 	Signers map[common.Address]struct{}
 	sort.Sort(signersAscending(sigs))
 	return sigs
+	//
 }
 
+// inturn函数是用来计算一个singer是不是该轮到投票了
 // inturn returns if a signer at a given block height is in-turn or not.
 func (s *Snapshot) inturn(number uint64, signer common.Address) bool {
+	// 获取签名者地址
 	signers, offset := s.signers(), 0
+	//
 	for offset < len(signers) && signers[offset] != signer {
 		offset++
 	}

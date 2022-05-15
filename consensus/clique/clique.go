@@ -558,22 +558,32 @@ func (c *Clique) verifySeal(snap *Snapshot, header *types.Header, parents []*typ
 // header for running the transactions on top.
 func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// If the block isn't a checkpoint, cast a random vote (good enough for now)
+	//这个是随机选择一个地址
+	//common是啥意思？ 是geth提供的一个库 common.Address是一个interface类型 支持很多对地址进行操作的函数
 	header.Coinbase = common.Address{}
 	header.Nonce = types.BlockNonce{}
 
 	number := header.Number.Uint64()
 	// Assemble the voting snapshot to check which votes make sense
+	// 获取到clique类中的snapshot 里面存储了投票的地址
 	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
 		return err
 	}
+	// 开启读取线程锁（只允许一个人读）为什么？
 	if number%c.config.Epoch != 0 {
 		c.lock.RLock()
 
 		// Gather all the proposals that make sense voting on
+		// 新建一个数组 里面是common.Address类型
 		addresses := make([]common.Address, 0, len(c.proposals))
+		// proposal函数是一个map类型 键是地址 值是bool：proposals map[common.Address]bool // Current list of proposals we are pushing
+		// 遍历proposal数组中的所有地址  用validvote函数来检验投票是不是有效的 有效就把地址添加到数组中
 		for address, authorize := range c.proposals {
 			if snap.validVote(address, authorize) {
+				// validvote函数是snap类型的一个接口函数 这个函数接受address 和 authorize参数
+				// authorize参数是一个bool 表示该地址是不是已经被authorized（不知道啥意思
+				// 如果clique共识引擎中的proposals里的地址 能在snapshot中的签名列表中找到
 				addresses = append(addresses, address)
 			}
 		}
@@ -729,6 +739,8 @@ func (c *Clique) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, 
 	return calcDifficulty(snap, c.signer)
 }
 
+// 计算difficulty的函数
+//
 func calcDifficulty(snap *Snapshot, signer common.Address) *big.Int {
 	if snap.inturn(snap.Number+1, signer) {
 		return new(big.Int).Set(diffInTurn)
