@@ -168,19 +168,27 @@ func generateCache(dest []uint32, epoch uint64, seed []byte) {
 	done := make(chan struct{})
 	defer close(done)
 
+	// 这个函数应该是用来logger打印东西的
+	// 分为两个case
+	// 如果程序完成了就return
+	// 如果 程序未结束 且在程序开始3秒之后 就logger一些东西
 	go func() {
 		for {
 			select {
 			case <-done:
 				return
 			case <-time.After(3 * time.Second):
+				// 调用这个函数：atomic.LoadUint32(&progress)*100/uint32(rows)/(cacheRounds+1)
+				// 不知道做啥用
 				logger.Info("Generating ethash verification cache", "percentage", atomic.LoadUint32(&progress)*100/uint32(rows)/(cacheRounds+1), "elapsed", common.PrettyDuration(time.Since(start)))
 			}
 		}
 	}()
+	// 生成了一个hasher
 	// Create a hasher to reuse between invocations
 	keccak512 := makeHasher(sha3.NewLegacyKeccak512())
 
+	// 生成初始化dataset
 	// Sequentially produce the initial dataset
 	keccak512(cache, seed)
 	for offset := uint64(hashBytes); offset < size; offset += hashBytes {

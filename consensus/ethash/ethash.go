@@ -53,6 +53,7 @@ var (
 	// algorithmRevision is the data structure version used for file naming.
 	algorithmRevision = 23
 
+	// dump magic 是用于检验数据库完整性检验的header
 	// dumpMagic is a dataset dump header to sanity check a data dump.
 	dumpMagic = []uint32{0xbaddcafe, 0xfee1dead}
 )
@@ -68,8 +69,10 @@ func init() {
 
 // isLittleEndian returns whether the local system is running in little or big
 // endian byte order.
+//
 func isLittleEndian() bool {
 	n := uint32(0x01020304)
+	// 判断返回值是不是4来确定
 	return *(*byte)(unsafe.Pointer(&n)) == 0x04
 }
 
@@ -218,6 +221,7 @@ func (lru *lru) get(epoch uint64) (item, future interface{}) {
 }
 
 // cache wraps an ethash cache with some metadata to allow easier concurrent use.
+// cache结构体 里面的dump和mmap是用来从磁盘中读取数据的（因为cache数据和dataset数据不仅存在于内存中，还可以被保存在磁盘文件中 当内存中的数据不存在时，会先查找一下磁盘文件中是否有数据，如果有则直接读取，不需再生成
 type cache struct {
 	epoch uint64    // Epoch for which this cache is relevant
 	dump  *os.File  // File descriptor of the memory mapped cache
@@ -389,6 +393,8 @@ func (d *dataset) finalizer() {
 	}
 }
 
+// 大写 MakeCache MakeDataset用于外部调用的函数 也就是geth启动时makecache和makedag命令调用的
+// 所有的这些函数最终调用的是generateCache 和 generateDataset 所以核心看generateCache 和 generateDataset
 // MakeCache generates a new ethash cache and optionally stores it to disk.
 func MakeCache(block uint64, dir string) {
 	c := cache{epoch: block / epochLength}
