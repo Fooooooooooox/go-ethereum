@@ -92,41 +92,52 @@ func calcDatasetSize(epoch int) uint64 {
 
 // hasher is a repetitive hasher allowing the same hash data structures to be
 // reused between hash runs instead of requiring new ones to be created.
+// hasher是一个函数类型 这里是提前指定hasher这类函数会传入dest和data  都是byte数组
 type hasher func(dest []byte, data []byte)
 
 // makeHasher creates a repetitive hasher, allowing the same hash data structures to
 // be reused between hash runs instead of requiring new ones to be created. The returned
 // function is not thread safe!
+// makerhasher会返回一个hasher类型的函数
 func makeHasher(h hash.Hash) hasher {
 	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
 	// Read alters the state but we reset the hash before every operation.
+	// 这里其实是查找一下你传入的hash方法有没有实现readerHash的接口
 	type readerHash interface {
 		hash.Hash
 		Read([]byte) (int, error)
 	}
+	// 如果没有的话 就panic不能找到Read接口方法
 	rh, ok := h.(readerHash)
 	if !ok {
 		panic("can't find Read method on hash")
 	}
+	// 拿到rh的长度 应该是这个函数接口的数量
 	outputLen := rh.Size()
+	// 返回的函数里包含Reset() Reset() Read(dest[:outputLen])方法
 	return func(dest []byte, data []byte) {
 		rh.Reset()
-		rh.Write(data)
+		rh.Reset()
 		rh.Read(dest[:outputLen])
 	}
 }
 
 // seedHash is the seed to use for generating a verification cache and the mining
 // dataset.
+// seedhash传入block 返回seed
+// seed是一个数组 其中的元素是byte 长度是32
 func seedHash(block uint64) []byte {
 	seed := make([]byte, 32)
+	// 如果block小于epoch长度 就直接返回seed
 	if block < epochLength {
 		return seed
 	}
 	keccak256 := makeHasher(sha3.NewLegacyKeccak256())
 	for i := 0; i < int(block/epochLength); i++ {
+		// 第一个参数是dest []byte, 第二个参数是data []byte
 		keccak256(seed, seed)
 	}
+
 	return seed
 }
 
@@ -150,8 +161,11 @@ func generateCache(dest []uint32, epoch uint64, seed []byte) {
 		}
 		logFn("Generated ethash verification cache", "elapsed", common.PrettyDuration(elapsed))
 	}()
+
 	// Convert our destination slice to a byte buffer
 	var cache []byte
+
+	// 这个(*reflect.SliceHeader)是用来获取slice的内存地址的？
 	cacheHdr := (*reflect.SliceHeader)(unsafe.Pointer(&cache))
 	dstHdr := (*reflect.SliceHeader)(unsafe.Pointer(&dest))
 	cacheHdr.Data = dstHdr.Data
@@ -159,6 +173,7 @@ func generateCache(dest []uint32, epoch uint64, seed []byte) {
 	cacheHdr.Cap = dstHdr.Cap * 4
 
 	// Calculate the number of theoretical rows (we'll store in one buffer nonetheless)
+	// 根据cache大小计算理论上需要的rows和size
 	size := uint64(len(cache))
 	rows := int(size) / hashBytes
 
@@ -190,7 +205,10 @@ func generateCache(dest []uint32, epoch uint64, seed []byte) {
 
 	// 生成初始化dataset
 	// Sequentially produce the initial dataset
+	// 传入seed初始化cache
 	keccak512(cache, seed)
+	// 以hashbyte为单位 循环
+	// 拿最后一个
 	for offset := uint64(hashBytes); offset < size; offset += hashBytes {
 		keccak512(cache[offset:], cache[offset-hashBytes:offset])
 		atomic.AddUint32(&progress, 1)
@@ -232,6 +250,7 @@ func fnv(a, b uint32) uint32 {
 	return a*0x01000193 ^ b
 }
 
+// fnv算法
 // fnvHash mixes in data into mix using the ethash fnv method.
 func fnvHash(mix []uint32, data []uint32) {
 	for i := 0; i < len(mix); i++ {
@@ -241,10 +260,13 @@ func fnvHash(mix []uint32, data []uint32) {
 
 // generateDatasetItem combines data from 256 pseudorandomly selected cache nodes,
 // and hashes that to compute a single dataset node.
+// 传入cache 返回一个byte数组
+//
 func generateDatasetItem(cache []uint32, index uint32, keccak512 hasher) []byte {
 	// Calculate the number of theoretical rows (we use one buffer nonetheless)
 	rows := uint32(len(cache) / hashWords)
 
+	// 初始化mix 是一个数组
 	// Initialize the mix
 	mix := make([]byte, hashBytes)
 
@@ -272,6 +294,7 @@ func generateDatasetItem(cache []uint32, index uint32, keccak512 hasher) []byte 
 	return mix
 }
 
+// generate dataset 生成一个用于挖矿的dataset
 // generateDataset generates the entire ethash dataset for mining.
 // This method places the result into dest in machine byte order.
 func generateDataset(dest []uint32, epoch uint64, cache []uint32) {
