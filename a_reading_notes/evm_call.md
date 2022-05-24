@@ -1,5 +1,6 @@
 # difference between call callcode delegatecall
 
+## we dive deep into call first cuz it's basic and fundemental
 ## call
 
 ```go
@@ -368,13 +369,15 @@ func codeBitmap(code []byte) bitvec {
 }
 ```
 
+8. interpreter.Run
+看完contract返回的结构体，回到最初call的逻辑.
+在拿到newcontract返回的合约执行环境结构体之后，把callcode中的内容写入到contract结构体中。
+然后就是整个call中最主要的环节：run
+
+Run函数还挺长的 所以我分段拿其中重要的逻辑分析
 
 
-
-
-
-
-
+（run放另一个文件里了
 
 
 
