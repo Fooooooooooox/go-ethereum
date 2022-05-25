@@ -46,9 +46,9 @@ defer func() { in.evm.depth-- }()
 ```
 # 重要的变量
 
-1. op：    当前的opcode
+## 1. op：    当前的opcode
 
-2. mem：   新开的内存
+## 2. mem：   新开的内存
 
 实际上 memory就是一个指针 指向一个struct结构体
 
@@ -56,7 +56,7 @@ defer func() { in.evm.depth-- }()
 
 NewMemory()会返回一个空的结构体的地址 长这样： &{[] 0}
 
-store是一个空的byte数组，可以将一个字符串转换为一个byte数组（似乎只能一个字符串
+store是一个空的byte数组，可以将字符串转换为一个byte数组
 
 例如： mem.store = []byte("hahaha up up and away")会得到：[104 97 104 97 104 97 32 117 112 32 117 112 32 97 110 100 32 97 119 97 121]
 
@@ -74,7 +74,7 @@ func NewMemory() *Memory {
 }
 ```
 
-3. stack： 栈
+## 3. stack： 栈
 
 ```go
 type Stack struct {
@@ -94,15 +94,32 @@ func newstack() *Stack {
 
 为什么？
 
-# what is pool？
+### what is pool？
 
-这一块需要理解pool这个概念
+要理解stack要先理解pool的概念
 
-pool是一系列的temporary objectsx
+pool是go官方提供的并发相关的库 他是一个非常巧妙的库
 
+查看go源码可以看到pool是一系列的temporary objects（缓存池）其中的对象可以被多个gorotines同时存储和读取 
 
-   
+所以pool就是用来存储被allocated的对象以便后面调用和释放，这样可以减轻garbage collector的压力，提高效率，并实现thread-safe
 
+用pool的形式来存储栈的结构会带来更好的性能
+
+```go
+type Stack struct {
+	data []uint256.Int
+}
+
+var stackPool = sync.Pool{
+	New: func() interface{} {
+		return &Stack{data: make([]uint256.Int, 0, 16)}
+	},
+}
+```
+stack是一个结构体，里面只有data这一个元素，data是一个数组，里面存放uint256
+
+stack的池子里存放的是stacK的地址：&Stack{data: make([]uint256.Int, 0, 16)} data数组的最大长度被限制为16（初始化为0）
 
 
 
