@@ -30,7 +30,7 @@ There are 4 kinds of nodes in mpt tree.
    ```
    
 
-"MPT circuit checks that the modification of the trie state happened correctly.
+"MPT circuit checks that the modification of the trie state happened correctly.“
 
 The circuit checks the transition from val1 to val2 at key1 that led to the change of trie root from root1 to root2 (the chaining of such proofs is yet to be added)"
 
